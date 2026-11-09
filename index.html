@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crafting Apps: acompanhamento diário</title>
+<style>
+:root { --fundo:#f5f6f8; --painel:#ffffff; --texto:#1d2330; --suave:#5f6b7a; --linha:#dde1e7;
+        --bom:#1f8a4c; --ruim:#c0392b; --barra:#e9ecf1; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root { --fundo:#14171c; --painel:#1d2129; --texto:#e6e9ee; --suave:#9aa4b2; --linha:#2f3540;
+          --bom:#4cc07f; --ruim:#ef6b5b; --barra:#2a2f38; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif; background:var(--fundo); color:var(--texto); }
+main { max-width:1200px; margin:0 auto; padding:24px 16px 40px; }
+h1 { font-size:1.5rem; margin:0 0 4px; }
+h2 { font-size:1rem; margin:0 0 12px; }
+.sub { color:var(--suave); font-size:.9rem; margin:0 0 16px; }
+.filtro { margin-bottom:20px; }
+select { font:inherit; padding:6px 10px; border-radius:6px; border:1px solid var(--linha); background:var(--painel); color:var(--texto); }
+.cartoes { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:20px; }
+.cartao, .painel { background:var(--painel); border:1px solid var(--linha); border-radius:10px; padding:14px 16px; }
+.cartao .rot { color:var(--suave); font-size:.85rem; }
+.cartao .val { font-size:1.6rem; font-weight:600; margin:4px 0; }
+.cartao .var { font-size:.85rem; color:var(--suave); }
+.bom { color:var(--bom) !important; } .ruim { color:var(--ruim) !important; }
+.painel { margin-bottom:20px; }
+.rolagem { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:.9rem; }
+th, td { padding:8px 10px; border-bottom:1px solid var(--linha); text-align:right; white-space:nowrap; }
+th:first-child, td:first-child { text-align:left; }
+th { cursor:pointer; user-select:none; color:var(--suave); font-weight:600; }
+.pbarra { display:inline-block; width:110px; height:10px; background:var(--barra); border-radius:5px; vertical-align:middle; margin-right:6px; overflow:hidden; }
+.pbarra span { display:block; height:100%; }
+.grade2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(480px,1fr)); gap:20px; }
+svg { width:100%; height:auto; display:block; }
+.grade { stroke:var(--linha); stroke-width:1; }
+.eixo { fill:var(--suave); font-size:11px; }
+.legenda { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.legenda button { font:inherit; font-size:.8rem; border:1px solid var(--linha); background:transparent; color:var(--texto);
+                  border-radius:12px; padding:2px 10px; cursor:pointer; }
+.legenda button.off { opacity:.4; }
+.legenda i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+.vazio { color:var(--suave); font-size:.9rem; padding:40px 0; text-align:center; }
+ul.mudancas { margin:0; padding-left:18px; font-size:.9rem; }
+footer { color:var(--suave); font-size:.8rem; margin-top:8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Crafting Apps (ArtCraft): acompanhamento diário</h1>
+  <p class="sub" id="cabecalho"></p>
+  <div class="filtro"><label>Aplicativo: <select id="filtro"></select></label></div>
+  <section class="cartoes" id="cartoes"></section>
+  <section class="painel"><h2>Situação atual</h2><div class="rolagem"><table id="tabela"></table></div></section>
+  <section class="grade2">
+    <div class="painel"><h2>Stars ao longo do tempo</h2><div id="g-stars"></div></div>
+    <div class="painel"><h2>Issues e PRs abertas ao longo do tempo</h2><div id="g-fila"></div></div>
+    <div class="painel"><h2>Commits entre coletas</h2><div id="g-commits"></div></div>
+    <div class="painel"><h2>Prontidão declarada ao longo do tempo</h2><div id="g-pront"></div></div>
+  </section>
+  <section class="painel"><h2>Mudanças de estágio</h2><div id="mudancas"></div></section>
+  <footer>Dados: API oficial do GitHub e ROADMAP.md de cada repositório. As prontidões são estimativas dos próprios projetos e não são comparáveis entre si.</footer>
+</main>
+<script>
+const DADOS = [{"t": "2026-11-05T17:13:15Z", "app": "photocraft", "stars": 77136, "forks": 13673, "watchers": 334, "issues": 2506, "prs": 1342, "commits": 9131, "push": "2026-11-05T17:02:17Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-05T17:13:15Z", "app": "vectorcraft", "stars": 11391, "forks": 5515, "watchers": 61, "issues": 835, "prs": 253, "commits": 8609, "push": "2026-11-05T17:08:09Z", "estagio": "alpha", "pront": 62}, {"t": "2026-11-05T17:13:15Z", "app": "filmcraft", "stars": 17585, "forks": 7247, "watchers": 83, "issues": 1207, "prs": 847, "commits": 3532, "push": "2026-11-05T13:29:31Z", "estagio": "alpha", "pront": 56}, {"t": "2026-11-05T17:13:15Z", "app": "lightcraft", "stars": 15527, "forks": 5965, "watchers": 63, "issues": 742, "prs": 754, "commits": 5066, "push": "2026-11-05T15:45:10Z", "estagio": "alpha", "pront": 61}, {"t": "2026-11-05T17:13:15Z", "app": "pdfcraft", "stars": 19663, "forks": 7345, "watchers": 76, "issues": 1771, "prs": 1425, "commits": 4363, "push": "2026-11-05T16:32:01Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-05T17:13:15Z", "app": "effectcraft", "stars": 8471, "forks": 4498, "watchers": 50, "issues": 744, "prs": 309, "commits": 4243, "push": "2026-11-05T14:21:59Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-05T17:13:15Z", "app": "designcraft", "stars": 5107, "forks": 3534, "watchers": 38, "issues": 491, "prs": 329, "commits": 4724, "push": "2026-11-05T14:53:17Z", "estagio": "pre-alpha", "pront": 47}, {"t": "2026-11-05T17:13:15Z", "app": "figcraft", "stars": 4384, "forks": 1706, "watchers": 34, "issues": 195, "prs": 157, "commits": 3027, "push": "2026-11-05T14:48:40Z", "estagio": "alpha", "pront": 53}, {"t": "2026-11-05T17:13:15Z", "app": "wordcraft", "stars": 17379, "forks": 4793, "watchers": 77, "issues": 1383, "prs": 1251, "commits": 2823, "push": "2026-11-05T16:44:35Z", "estagio": "alpha", "pront": 60}, {"t": "2026-11-05T17:13:15Z", "app": "gridcraft", "stars": 7192, "forks": 3347, "watchers": 42, "issues": 888, "prs": 873, "commits": 2817, "push": "2026-11-05T14:03:10Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-05T17:13:15Z", "app": "deckcraft", "stars": 4623, "forks": 2667, "watchers": 26, "issues": 378, "prs": 385, "commits": 2005, "push": "2026-11-05T16:23:44Z", "estagio": "alpha", "pront": 55}, {"t": "2026-11-05T17:13:15Z", "app": "soundcraft", "stars": 4099, "forks": 2512, "watchers": 44, "issues": 342, "prs": 249, "commits": 1454, "push": "2026-11-05T14:01:35Z", "estagio": "pre-alpha", "pront": 40}, {"t": "2026-11-05T17:13:15Z", "app": "cadcraft", "stars": 7692, "forks": 3285, "watchers": 62, "issues": 576, "prs": 633, "commits": 1230, "push": "2026-11-05T14:08:37Z", "estagio": "pre-alpha", "pront": 38}, {"t": "2026-11-05T19:06:52Z", "app": "photocraft", "stars": 77162, "forks": 13675, "watchers": 334, "issues": 2525, "prs": 1354, "commits": 9131, "push": "2026-11-05T17:13:38Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-05T19:06:52Z", "app": "vectorcraft", "stars": 11397, "forks": 5516, "watchers": 61, "issues": 833, "prs": 255, "commits": 8633, "push": "2026-11-05T19:02:56Z", "estagio": "alpha", "pront": 62}, {"t": "2026-11-05T19:06:52Z", "app": "filmcraft", "stars": 17590, "forks": 7248, "watchers": 83, "issues": 1208, "prs": 848, "commits": 3532, "push": "2026-11-05T13:29:31Z", "estagio": "alpha", "pront": 56}, {"t": "2026-11-05T19:06:52Z", "app": "lightcraft", "stars": 15535, "forks": 5966, "watchers": 63, "issues": 744, "prs": 756, "commits": 5066, "push": "2026-11-05T15:45:10Z", "estagio": "alpha", "pront": 61}, {"t": "2026-11-05T19:06:52Z", "app": "pdfcraft", "stars": 19677, "forks": 7348, "watchers": 76, "issues": 1776, "prs": 1429, "commits": 4363, "push": "2026-11-05T16:32:01Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-05T19:06:52Z", "app": "effectcraft", "stars": 8473, "forks": 4499, "watchers": 50, "issues": 744, "prs": 309, "commits": 4243, "push": "2026-11-05T14:21:59Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-05T19:06:52Z", "app": "designcraft", "stars": 5110, "forks": 3535, "watchers": 39, "issues": 491, "prs": 329, "commits": 4724, "push": "2026-11-05T14:53:17Z", "estagio": "pre-alpha", "pront": 47}, {"t": "2026-11-05T19:06:52Z", "app": "figcraft", "stars": 4394, "forks": 1706, "watchers": 34, "issues": 198, "prs": 157, "commits": 3027, "push": "2026-11-05T14:48:40Z", "estagio": "alpha", "pront": 53}, {"t": "2026-11-05T19:06:52Z", "app": "wordcraft", "stars": 17387, "forks": 4795, "watchers": 77, "issues": 1384, "prs": 1253, "commits": 2824, "push": "2026-11-05T17:58:07Z", "estagio": "alpha", "pront": 60}, {"t": "2026-11-05T19:06:52Z", "app": "gridcraft", "stars": 7197, "forks": 3347, "watchers": 42, "issues": 890, "prs": 875, "commits": 2817, "push": "2026-11-05T14:03:10Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-05T19:06:52Z", "app": "deckcraft", "stars": 4625, "forks": 2669, "watchers": 26, "issues": 378, "prs": 385, "commits": 2005, "push": "2026-11-05T16:23:44Z", "estagio": "alpha", "pront": 55}, {"t": "2026-11-05T19:06:52Z", "app": "soundcraft", "stars": 4099, "forks": 2512, "watchers": 44, "issues": 342, "prs": 249, "commits": 1454, "push": "2026-11-05T14:01:35Z", "estagio": "pre-alpha", "pront": 40}, {"t": "2026-11-05T19:06:52Z", "app": "cadcraft", "stars": 7695, "forks": 3285, "watchers": 62, "issues": 576, "prs": 633, "commits": 1230, "push": "2026-11-05T14:08:37Z", "estagio": "pre-alpha", "pront": 38}, {"t": "2026-11-06T12:00:58Z", "app": "photocraft", "stars": 77342, "forks": 13712, "watchers": 328, "issues": 2337, "prs": 1292, "commits": 9465, "push": "2026-11-06T11:42:39Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-06T12:00:58Z", "app": "vectorcraft", "stars": 11428, "forks": 5536, "watchers": 62, "issues": 829, "prs": 264, "commits": 8749, "push": "2026-11-06T11:10:41Z", "estagio": "alpha", "pront": 62}, {"t": "2026-11-06T12:00:58Z", "app": "filmcraft", "stars": 17655, "forks": 7268, "watchers": 84, "issues": 1216, "prs": 854, "commits": 3537, "push": "2026-11-06T11:14:15Z", "estagio": "alpha", "pront": 56}, {"t": "2026-11-06T12:00:58Z", "app": "lightcraft", "stars": 15570, "forks": 5981, "watchers": 63, "issues": 743, "prs": 748, "commits": 5098, "push": "2026-11-06T11:37:14Z", "estagio": "alpha", "pront": 62}, {"t": "2026-11-06T12:00:58Z", "app": "pdfcraft", "stars": 19765, "forks": 7384, "watchers": 79, "issues": 1805, "prs": 1445, "commits": 4396, "push": "2026-11-06T11:37:26Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-06T12:00:58Z", "app": "effectcraft", "stars": 8495, "forks": 4516, "watchers": 51, "issues": 746, "prs": 313, "commits": 4288, "push": "2026-11-06T11:12:27Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-06T12:00:58Z", "app": "designcraft", "stars": 5128, "forks": 3545, "watchers": 41, "issues": 512, "prs": 336, "commits": 4731, "push": "2026-11-06T11:36:57Z", "estagio": "pre-alpha", "pront": 47}, {"t": "2026-11-06T12:00:58Z", "app": "figcraft", "stars": 4485, "forks": 1724, "watchers": 34, "issues": 207, "prs": 161, "commits": 3032, "push": "2026-11-06T10:45:43Z", "estagio": "alpha", "pront": 53}, {"t": "2026-11-06T12:00:58Z", "app": "wordcraft", "stars": 17440, "forks": 4822, "watchers": 77, "issues": 1406, "prs": 1241, "commits": 2852, "push": "2026-11-06T11:59:18Z", "estagio": "alpha", "pront": 60}, {"t": "2026-11-06T12:00:58Z", "app": "gridcraft", "stars": 7231, "forks": 3370, "watchers": 42, "issues": 906, "prs": 896, "commits": 2820, "push": "2026-11-06T11:37:05Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-06T12:00:58Z", "app": "deckcraft", "stars": 4641, "forks": 2677, "watchers": 26, "issues": 382, "prs": 395, "commits": 2005, "push": "2026-11-06T11:36:47Z", "estagio": "alpha", "pront": 55}, {"t": "2026-11-06T12:00:58Z", "app": "soundcraft", "stars": 4115, "forks": 2522, "watchers": 44, "issues": 343, "prs": 255, "commits": 1460, "push": "2026-11-06T11:08:31Z", "estagio": "pre-alpha", "pront": 40}, {"t": "2026-11-06T12:00:58Z", "app": "cadcraft", "stars": 7728, "forks": 3302, "watchers": 61, "issues": 583, "prs": 615, "commits": 1405, "push": "2026-11-06T11:08:54Z", "estagio": "pre-alpha", "pront": 38}, {"t": "2026-11-09T10:08:28Z", "app": "photocraft", "stars": null, "forks": null, "watchers": null, "issues": null, "prs": null, "commits": null, "push": "", "estagio": "", "pront": null}, {"t": "2026-11-09T10:08:28Z", "app": "vectorcraft", "stars": null, "forks": null, "watchers": null, "issues": null, "prs": null, "commits": null, "push": "", "estagio": "", "pront": null}, {"t": "2026-11-09T10:08:28Z", "app": "filmcraft", "stars": 17866, "forks": 7323, "watchers": 86, "issues": 1224, "prs": 916, "commits": 3733, "push": "2026-11-09T05:30:09Z", "estagio": "alpha", "pront": 56}, {"t": "2026-11-09T10:08:28Z", "app": "lightcraft", "stars": 15735, "forks": 6019, "watchers": 63, "issues": 774, "prs": 808, "commits": 5122, "push": "2026-11-09T05:30:12Z", "estagio": "alpha", "pront": 62}, {"t": "2026-11-09T10:08:28Z", "app": "pdfcraft", "stars": 20088, "forks": 7444, "watchers": 80, "issues": 1757, "prs": 1314, "commits": 5195, "push": "2026-11-09T10:08:47Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-09T10:08:28Z", "app": "effectcraft", "stars": 8578, "forks": 4545, "watchers": 52, "issues": 775, "prs": 324, "commits": 4376, "push": "2026-11-09T09:49:53Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-09T10:08:28Z", "app": "designcraft", "stars": 5196, "forks": 3565, "watchers": 41, "issues": 571, "prs": 364, "commits": 4771, "push": "2026-11-09T07:34:09Z", "estagio": "pre-alpha", "pront": 47}, {"t": "2026-11-09T10:08:28Z", "app": "figcraft", "stars": 4721, "forks": 1776, "watchers": 34, "issues": 201, "prs": 98, "commits": 3672, "push": "2026-11-09T05:30:07Z", "estagio": "alpha", "pront": 53}, {"t": "2026-11-09T10:08:28Z", "app": "wordcraft", "stars": 17646, "forks": 4878, "watchers": 83, "issues": 1445, "prs": 1261, "commits": 3176, "push": "2026-11-09T05:30:23Z", "estagio": "alpha", "pront": 60}, {"t": "2026-11-09T10:08:28Z", "app": "gridcraft", "stars": 7353, "forks": 3404, "watchers": 45, "issues": 895, "prs": 944, "commits": 2949, "push": "2026-11-09T07:46:53Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-09T10:08:28Z", "app": "deckcraft", "stars": 4691, "forks": 2704, "watchers": 26, "issues": 390, "prs": 423, "commits": 2031, "push": "2026-11-09T05:30:02Z", "estagio": "alpha", "pront": 55}, {"t": "2026-11-09T10:08:28Z", "app": "soundcraft", "stars": 4181, "forks": 2538, "watchers": 45, "issues": 360, "prs": 259, "commits": 1486, "push": "2026-11-09T05:30:18Z", "estagio": "pre-alpha", "pront": 40}, {"t": "2026-11-09T10:08:28Z", "app": "cadcraft", "stars": 7848, "forks": 3339, "watchers": 62, "issues": 593, "prs": 642, "commits": 1513, "push": "2026-11-09T05:30:00Z", "estagio": "pre-alpha", "pront": 38}, {"t": "2026-11-09T12:00:12Z", "app": "photocraft", "stars": 78094, "forks": 13817, "watchers": 329, "issues": 2570, "prs": 1357, "commits": 11009, "push": "2026-11-09T11:33:21Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-09T12:00:12Z", "app": "vectorcraft", "stars": 11532, "forks": 5574, "watchers": 64, "issues": 815, "prs": 228, "commits": 10213, "push": "2026-11-09T11:34:07Z", "estagio": "alpha", "pront": 62}, {"t": "2026-11-09T12:00:12Z", "app": "filmcraft", "stars": 17870, "forks": 7325, "watchers": 86, "issues": 1210, "prs": 918, "commits": 3735, "push": "2026-11-09T11:54:14Z", "estagio": "alpha", "pront": 56}, {"t": "2026-11-09T12:00:12Z", "app": "lightcraft", "stars": 15737, "forks": 6021, "watchers": 63, "issues": 770, "prs": 807, "commits": 5139, "push": "2026-11-09T11:57:02Z", "estagio": "alpha", "pront": 62}, {"t": "2026-11-09T12:00:12Z", "app": "pdfcraft", "stars": 20101, "forks": 7447, "watchers": 80, "issues": 1673, "prs": 1234, "commits": 5492, "push": "2026-11-09T11:54:59Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-09T12:00:12Z", "app": "effectcraft", "stars": 8580, "forks": 4546, "watchers": 52, "issues": 762, "prs": 325, "commits": 4376, "push": "2026-11-09T11:30:32Z", "estagio": "alpha", "pront": 45}, {"t": "2026-11-09T12:00:12Z", "app": "designcraft", "stars": 5197, "forks": 3566, "watchers": 41, "issues": 565, "prs": 367, "commits": 4771, "push": "2026-11-09T11:30:15Z", "estagio": "pre-alpha", "pront": 47}, {"t": "2026-11-09T12:00:12Z", "app": "figcraft", "stars": 4726, "forks": 1776, "watchers": 34, "issues": 203, "prs": 103, "commits": 3673, "push": "2026-11-09T11:59:41Z", "estagio": "alpha", "pront": 53}, {"t": "2026-11-09T12:00:12Z", "app": "wordcraft", "stars": 17653, "forks": 4879, "watchers": 83, "issues": 1407, "prs": 1261, "commits": 3187, "push": "2026-11-09T11:56:44Z", "estagio": "alpha", "pront": 60}, {"t": "2026-11-09T12:00:12Z", "app": "gridcraft", "stars": 7355, "forks": 3404, "watchers": 45, "issues": 877, "prs": 944, "commits": 2949, "push": "2026-11-09T11:51:15Z", "estagio": "alpha", "pront": 50}, {"t": "2026-11-09T12:00:12Z", "app": "deckcraft", "stars": 4694, "forks": 2704, "watchers": 26, "issues": 380, "prs": 423, "commits": 2031, "push": "2026-11-09T11:54:56Z", "estagio": "alpha", "pront": 55}, {"t": "2026-11-09T12:00:12Z", "app": "soundcraft", "stars": 4182, "forks": 2539, "watchers": 45, "issues": 352, "prs": 259, "commits": 1490, "push": "2026-11-09T11:54:20Z", "estagio": "pre-alpha", "pront": 40}, {"t": "2026-11-09T12:00:12Z", "app": "cadcraft", "stars": 7850, "forks": 3340, "watchers": 62, "issues": 588, "prs": 642, "commits": 1513, "push": "2026-11-09T11:58:57Z", "estagio": "pre-alpha", "pront": 38}];
+const NOMES = {photocraft:"PhotoCraft", vectorcraft:"VectorCraft", filmcraft:"FilmCraft", lightcraft:"LightCraft",
+  pdfcraft:"PdfCraft", effectcraft:"EffectCraft", designcraft:"DesignCraft", figcraft:"FigCraft",
+  wordcraft:"WordCraft", gridcraft:"GridCraft", deckcraft:"DeckCraft", soundcraft:"SoundCraft", cadcraft:"CADCraft"};
+const CORES = {photocraft:"#2f6fd6", vectorcraft:"#e0812b", filmcraft:"#8e44ad", lightcraft:"#d4a20b",
+  pdfcraft:"#c0392b", effectcraft:"#16a085", designcraft:"#7f8c8d", figcraft:"#e84393",
+  wordcraft:"#1abc9c", gridcraft:"#27ae60", deckcraft:"#d35400", soundcraft:"#6c5ce7", cadcraft:"#0984e3"};
+const coletas = [...new Set(DADOS.map(d => d.t))].sort();
+const apps = [...new Set(DADOS.map(d => d.app))];
+const nome = a => NOMES[a] || a;
+const cor = a => CORES[a] || "#888888";
+const fmt = n => n == null ? "–" : n.toLocaleString("pt-BR");
+const dataHora = iso => iso ? new Date(iso).toLocaleString("pt-BR", {dateStyle:"short", timeStyle:"short"}) : "–";
+const dataCurta = iso => new Date(iso).toLocaleString("pt-BR", {day:"2-digit", month:"2-digit"});
+const abrevia = v => Math.abs(v) >= 1000 ? (v / 1000).toLocaleString("pt-BR", {maximumFractionDigits:1}) + " mil" : Math.round(v).toLocaleString("pt-BR");
+let filtro = "todos";
+const ocultos = new Set();
+let ordem = {campo:"stars", desc:true};
+
+const registro = (t, a) => DADOS.find(d => d.t === t && d.app === a);
+const selecionados = () => filtro === "todos" ? apps : [filtro];
+function soma(t, campo) {
+  let s = 0, achou = false;
+  for (const a of selecionados()) { const r = registro(t, a); if (r && r[campo] != null) { s += r[campo]; achou = true; } }
+  return achou ? s : null;
+}
+
+function montarFiltro() {
+  const sel = document.getElementById("filtro");
+  sel.innerHTML = '<option value="todos">Todos</option>' +
+    apps.slice().sort((a, b) => nome(a).localeCompare(nome(b))).map(a => `<option value="${a}">${nome(a)}</option>`).join("");
+  sel.onchange = () => { filtro = sel.value; desenhar(); };
+}
+
+function cartoes() {
+  const ult = coletas[coletas.length - 1], ant = coletas[coletas.length - 2];
+  const itens = [["Stars", "stars", 0], ["Issues abertas", "issues", -1], ["PRs abertas", "prs", -1], ["Commits", "commits", 0]];
+  let html = itens.map(([rot, campo, sentido]) => {
+    const v = soma(ult, campo), p = ant ? soma(ant, campo) : null;
+    let varHtml = "Sem coleta anterior";
+    if (v != null && p != null) {
+      const d = v - p; let cls = "";
+      if (sentido < 0 && d > 0) cls = "ruim"; else if (sentido < 0 && d < 0) cls = "bom";
+      varHtml = `<span class="${cls}">${d > 0 ? "+" : ""}${fmt(d)}</span> desde a coleta anterior`;
+    }
+    return `<div class="cartao"><div class="rot">${rot}</div><div class="val">${fmt(v)}</div><div class="var">${varHtml}</div></div>`;
+  }).join("");
+  const est = selecionados().map(a => registro(ult, a)).filter(Boolean);
+  const alfa = est.filter(r => r.estagio === "alpha").length;
+  html += `<div class="cartao"><div class="rot">Em alfa</div><div class="val">${alfa} de ${est.length}</div><div class="var">Estágio declarado no ROADMAP</div></div>`;
+  document.getElementById("cartoes").innerHTML = html;
+}
+
+function corPront(p) {
+  const x = Math.max(0, Math.min(1, (p - 30) / 40));
+  return `hsl(${Math.round(x * 120)}, 60%, 45%)`;
+}
+
+function tabela() {
+  const ult = coletas[coletas.length - 1];
+  const linhas = selecionados().map(a => registro(ult, a)).filter(Boolean);
+  const cols = [["app", "Aplicativo"], ["stars", "Stars"], ["forks", "Forks"], ["watchers", "Watchers"], ["issues", "Issues"],
+    ["prs", "PRs"], ["commits", "Commits"], ["push", "Último push"], ["estagio", "Estágio"], ["pront", "Prontidão"]];
+  linhas.sort((x, y) => {
+    let a = x[ordem.campo], b = y[ordem.campo];
+    if (ordem.campo === "app") { a = nome(a); b = nome(b); }
+    if (a == null) return 1; if (b == null) return -1;
+    const c = typeof a === "string" ? a.localeCompare(b) : a - b;
+    return ordem.desc ? -c : c;
+  });
+  let html = "<thead><tr>" + cols.map(([c, r]) => `<th data-c="${c}">${r}${ordem.campo === c ? (ordem.desc ? " ▼" : " ▲") : ""}</th>`).join("") + "</tr></thead><tbody>";
+  for (const r of linhas) {
+    const barra = r.pront == null ? "–" : `<span class="pbarra"><span style="width:${r.pront}%;background:${corPront(r.pront)}"></span></span>${r.pront}%`;
+    html += `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor(r.app)};margin-right:6px"></i>${nome(r.app)}</td>
+      <td>${fmt(r.stars)}</td><td>${fmt(r.forks)}</td><td>${fmt(r.watchers)}</td><td>${fmt(r.issues)}</td><td>${fmt(r.prs)}</td>
+      <td>${fmt(r.commits)}</td><td>${dataHora(r.push)}</td><td>${r.estagio || "–"}</td><td>${barra}</td></tr>`;
+  }
+  const t = document.getElementById("tabela");
+  t.innerHTML = html + "</tbody>";
+  t.querySelectorAll("th").forEach(th => th.onclick = () => {
+    const c = th.dataset.c;
+    ordem = {campo:c, desc: ordem.campo === c ? !ordem.desc : c !== "app" && c !== "estagio"};
+    tabela();
+  });
+}
+
+function legenda(el, series) {
+  const div = document.createElement("div");
+  div.className = "legenda";
+  for (const s of series) {
+    const b = document.createElement("button");
+    b.innerHTML = `<i style="background:${s.cor}"></i>${s.nome}`;
+    if (ocultos.has(s.nome)) b.classList.add("off");
+    b.onclick = () => { ocultos.has(s.nome) ? ocultos.delete(s.nome) : ocultos.add(s.nome); graficos(); };
+    div.appendChild(b);
+  }
+  el.appendChild(div);
+}
+
+function grafico(id, series, sufixo) {
+  const el = document.getElementById(id);
+  const vis = series.filter(s => !ocultos.has(s.nome));
+  const ys = vis.flatMap(s => s.pontos.filter(p => p.y != null).map(p => p.y));
+  if (coletas.length < 2 || !ys.length) {
+    el.innerHTML = '<p class="vazio">O gráfico aparece a partir da segunda coleta.</p>';
+    legenda(el, series);
+    return;
+  }
+  const W = 560, H = 260, m = {l:58, r:14, t:12, b:34};
+  let min = Math.min(...ys), max = Math.max(...ys);
+  if (min === max) { min -= 1; max += 1; }
+  const folga = (max - min) * 0.08; min -= folga; max += folga;
+  const x = i => m.l + i * (W - m.l - m.r) / (coletas.length - 1);
+  const y = v => m.t + (H - m.t - m.b) * (1 - (v - min) / (max - min));
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let k = 0; k <= 4; k++) {
+    const v = min + (max - min) * k / 4, yy = y(v).toFixed(1);
+    s += `<line class="grade" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/><text class="eixo" x="${m.l - 6}" y="${(+yy + 4).toFixed(1)}" text-anchor="end">${abrevia(v)}${sufixo}</text>`;
+  }
+  const marcas = [...new Set([0, Math.floor((coletas.length - 1) / 2), coletas.length - 1])];
+  for (const i of marcas) s += `<text class="eixo" x="${x(i).toFixed(1)}" y="${H - m.b + 18}" text-anchor="middle">${dataCurta(coletas[i])}</text>`;
+  for (const se of vis) {
+    const pts = se.pontos.filter(p => p.y != null);
+    if (pts.length > 1) s += `<polyline fill="none" stroke="${se.cor}" stroke-width="2" points="${pts.map(p => x(p.x).toFixed(1) + "," + y(p.y).toFixed(1)).join(" ")}"/>`;
+    for (const p of pts) s += `<circle cx="${x(p.x).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="3" fill="${se.cor}"><title>${se.nome} · ${dataHora(coletas[p.x])}: ${fmt(p.y)}${sufixo}</title></circle>`;
+  }
+  el.innerHTML = s + "</svg>";
+  legenda(el, series);
+}
+
+function seriePorApp(campo) {
+  return selecionados().map(a => ({nome:nome(a), cor:cor(a),
+    pontos: coletas.map((t, i) => { const r = registro(t, a); return {x:i, y: r ? r[campo] : null}; })}));
+}
+
+function graficos() {
+  grafico("g-stars", seriePorApp("stars"), "");
+  grafico("g-fila", [
+    {nome:"Issues abertas", cor:"#c0392b", pontos: coletas.map((t, i) => ({x:i, y:soma(t, "issues")}))},
+    {nome:"PRs abertas", cor:"#2f6fd6", pontos: coletas.map((t, i) => ({x:i, y:soma(t, "prs")}))}], "");
+  grafico("g-commits", [{nome:"Commits entre coletas", cor:"#16a085",
+    pontos: coletas.map((t, i) => { if (i === 0) return {x:i, y:null}; const a = soma(t, "commits"), b = soma(coletas[i - 1], "commits");
+      return {x:i, y: a != null && b != null ? a - b : null}; })}], "");
+  grafico("g-pront", seriePorApp("pront"), "%");
+}
+
+function mudancas() {
+  const itens = [];
+  for (const a of selecionados()) {
+    let anterior = null;
+    for (const t of coletas) {
+      const r = registro(t, a);
+      if (!r || !r.estagio) continue;
+      if (anterior && r.estagio !== anterior) itens.push({t, texto:`${nome(a)}: ${anterior} → ${r.estagio} em ${dataHora(t)}`});
+      anterior = r.estagio;
+    }
+  }
+  itens.sort((x, y) => y.t.localeCompare(x.t));
+  document.getElementById("mudancas").innerHTML = itens.length
+    ? "<ul class='mudancas'>" + itens.map(i => `<li>${i.texto}</li>`).join("") + "</ul>"
+    : '<p class="sub">Nenhuma mudança de estágio registrada no período coletado.</p>';
+}
+
+function desenhar() { cartoes(); tabela(); graficos(); mudancas(); }
+
+document.getElementById("cabecalho").textContent =
+  `Última coleta: ${dataHora(coletas[coletas.length - 1])} · ${coletas.length} coleta(s) desde ${dataHora(coletas[0])} · ${apps.length} aplicativos · Fonte: API do GitHub`;
+montarFiltro();
+desenhar();
+</script>
+</body>
+</html>
